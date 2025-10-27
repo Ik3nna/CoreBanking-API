@@ -1,0 +1,70 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build Results
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+*.pdb
+*.ilk
+*.meta
+*.log
+*.bak
+*.ncb
+*.sbr
+*.res
+*.pch
+*.idb
+*.lib
+*.exp
+*.com
+*.tlh
+*.tli
+*.tmp
+*.vspscc
+*.vssscc
+*.builds
+*.pidb
+*.log
+*.scc
+
+# NuGet packages
+packages/
+*.nupkg
+*.snupkg
+*.cache
+project.assets.json
+*.nuget.g.props
+*.nuget.g.targets
+
+# Rider
+.idea/
+
+# DotNet Tooling
+.config/
+.dotnet/
+.templateengine/
+
+# Azure DevOps / TeamCity / CI/CD
+*.trx
+TestResults/
+*.coverage
+*.coveragexml
+
+# Editor-specific files
+*.[Cc]ode[Ss]nippet
+*.resharper
+*.dotSettings
+.vscode/
+
+# Other common files to ignore
+*.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.gitattributes
