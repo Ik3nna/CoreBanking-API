@@ -1,7 +1,15 @@
+using CoreBanking.API.Middleware;
+using CoreBanking.Application.Accounts.Commands.CreateAccount;
+using CoreBanking.Application.Common.Behaviors;
+using CoreBanking.Application.Common.Mappings;
 using CoreBanking.Core.Interfaces;
 using CoreBanking.Infrastructure.Data;
 using CoreBanking.Infrastructure.Repositories;
+using FluentValidation;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,12 +22,130 @@ builder.Services.AddControllers();
 
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddMediatR(cfg =>
+{
+    // Note: Registering one command is enough per Layer—MediatR scans the entire Application assembly (all Commands & Queries).
+    cfg.RegisterServicesFromAssembly(typeof(CreateAccountCommand).Assembly);
+
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+    cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+
+    cfg.Lifetime = ServiceLifetime.Scoped;
+});
+
+builder.Services.AddAutoMapper(cfg => { }, typeof(AccountProfile).Assembly);
+
+builder.Services.AddValidatorsFromAssembly(typeof(CreateAccountCommandValidator).Assembly);
+
+builder.Services.AddMediatR(cfg =>
+
+{
+
+    cfg.RegisterServicesFromAssembly(typeof(CreateAccountCommand).Assembly);
+
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+
+    cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+
+
+
+    cfg.Lifetime = ServiceLifetime.Scoped;
+
+});
+
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+
+// Add Swagger/OpenAPI
+
+builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddSwaggerGen(c =>
+
+{
+
+    c.SwaggerDoc("v1", new OpenApiInfo
+
+    {
+
+        Title = "CoreBanking API",
+
+        Version = "v1",
+
+        Description = "A modern banking API built with Clean Architecture and CQRS",
+
+        Contact = new OpenApiContact
+
+        {
+
+            Name = "CoreBanking Team",
+
+            Email = "support@corebanking.com"
+
+        }
+
+    });
+
+
+
+    // Include XML comments
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+
+    c.IncludeXmlComments(xmlPath);
+
+
+
+    // Add authentication support in Swagger
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+
+    {
+
+        Description = "JWT Authorization header using the Bearer scheme.",
+
+        Name = "Authorization",
+
+        In = ParameterLocation.Header,
+
+        Type = SecuritySchemeType.ApiKey,
+
+        Scheme = "Bearer"
+
+    });
+
+});
+
 var app = builder.Build();
+
+app.UseSwagger(options => options.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi2_0);
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
+app.UseSwaggerUI(c =>
+
+{
+
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "CoreBanking API v1");
+
+    c.RoutePrefix = "swagger"; // Access at /swagger
+
+    c.DocumentTitle = "CoreBanking API Documentation";
+
+    c.EnableDeepLinking();
+
+    c.DisplayOperationId();
+
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -27,6 +153,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 
 app.UseHttpsRedirection();
 

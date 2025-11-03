@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace CoreBanking.Core.ValueObjects
+﻿namespace CoreBanking.Core.ValueObjects
 {
     public record AccountNumber
     {
@@ -12,9 +6,8 @@ namespace CoreBanking.Core.ValueObjects
 
         public AccountNumber(string value)
         {
-            if (string.IsNullOrEmpty(value) || value.Length != 10)
-                throw new ArgumentException("Account number msut be 10 digits");
-            
+            if (string.IsNullOrWhiteSpace(value) || value.Length != 10)
+                throw new ArgumentException("Account number must be 10 digits");
 
             if (!value.All(char.IsDigit))
                 throw new ArgumentException("Account number must contain only digits");
@@ -22,10 +15,10 @@ namespace CoreBanking.Core.ValueObjects
             Value = value;
         }
 
-        // no casting needed when you need to convert to string
-        public static implicit operator string(AccountNumber number) => number.Value;
+        private AccountNumber() : this(string.Empty) { }
+        public static AccountNumber Create(string value) => new(value);
 
-        // Ensures validation happens when converting from string to number
+        public static implicit operator string(AccountNumber number) => number.Value;
         public static explicit operator AccountNumber(string value) => new(value);
 
         public override string ToString() => Value;

@@ -6,11 +6,27 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+	<PropertyGroup>
+
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+		<NoWarn>$(NoWarn);1591</NoWarn>
+
+	</PropertyGroup>
+
+	<ItemGroup>
+    <PackageReference Include="AutoMapper" Version="15.1.0" />
+    <PackageReference Include="MediatR" Version="13.1.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="8.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CoreBankingTest.APP\CoreBanking.Application.csproj" />
     <ProjectReference Include="..\CoreBankingTest.Core\CoreBanking.Core.csproj" />
     <ProjectReference Include="..\CoreBankingText.DAL\CoreBanking.Infrastructure.csproj" />
   </ItemGroup>
