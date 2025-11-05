@@ -1,0 +1,31 @@
+﻿
+using System.ComponentModel.DataAnnotations.Schema;
+using CoreBanking.Core.Interfaces;
+
+namespace CoreBanking.Core.Common
+{
+
+    public abstract class AggregateRoot<TId> : IAggregateRoot where TId : notnull
+
+    {
+
+        [NotMapped]
+
+        private readonly List<IDomainEvent> _domainEvents = new();
+
+
+
+        [NotMapped]
+
+        public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+
+
+
+        protected void AddDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
+
+
+
+        public void ClearDomainEvents() => _domainEvents.Clear();
+
+    }
+}

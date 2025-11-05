@@ -1,10 +1,10 @@
 ﻿
 using CoreBanking.Application.Common.Interfaces;
 using CoreBanking.Application.Common.Models;
-using CoreBanking.Core.Entities;
 using CoreBanking.Core.Enums;
 using CoreBanking.Core.Interfaces;
 using CoreBanking.Core.ValueObjects;
+using CoreBanking.Core.Entities;
 using MediatR;
 
 namespace CoreBanking.Application.Accounts.Commands.CreateAccount;
@@ -44,7 +44,7 @@ public class CreateAccountCommandHandler : IRequestHandler<CreateAccountCommand,
         var accountNumber = await GenerateUniqueAccountNumberAsync();
 
         // Create account with initial deposit
-        var account = Account.Create(
+        var account = CoreBanking.Core.Entities.Account.Create(
             customerId: request.CustomerId,
             accountNumber: accountNumber,
             accountType: Enum.Parse<AccountType>(request.AccountType),

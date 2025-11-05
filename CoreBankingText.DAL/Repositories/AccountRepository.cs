@@ -35,6 +35,7 @@ namespace CoreBanking.Infrastructure.Repositories
         public async Task<Account?> GetByAccountNumberAsync(AccountNumber accountNumber)
         {
             return await _context.Accounts
+                .Include(a => a.Customer)
                 .Include(a => a.Transactions)
                 .FirstOrDefaultAsync(a => a.AccountNumber == accountNumber);
         }

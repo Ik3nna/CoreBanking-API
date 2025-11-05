@@ -49,13 +49,13 @@ public class AccountsController : ControllerBase
 
     [HttpGet("{accountNumber}")]
 
-    [ProducesResponseType(typeof(ApiResponse<AccountDetailsDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<CoreBanking.Application.Accounts.Queries.GetAccountDetails.GetAccountDetailsQuery.AccountDetailsDto>), StatusCodes.Status200OK)]
 
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
 
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
 
-    public async Task<ActionResult<ApiResponse<AccountDetailsDto>>> GetAccountDetails(string accountNumber)
+    public async Task<ActionResult<ApiResponse<CoreBanking.Application.Accounts.Queries.GetAccountDetails.GetAccountDetailsQuery.AccountDetailsDto>>> GetAccountDetails(string accountNumber)
 
     {
 
@@ -75,7 +75,7 @@ public class AccountsController : ControllerBase
 
 
 
-        return Ok(ApiResponse<AccountDetailsDto>.CreateSuccess(result.Data!));
+        return Ok(ApiResponse<CoreBanking.Application.Accounts.Queries.GetAccountDetails.GetAccountDetailsQuery.AccountDetailsDto>.CreateSuccess(result.Data!));
 
     }
 

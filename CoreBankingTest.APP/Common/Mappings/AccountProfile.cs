@@ -20,7 +20,7 @@ public class AccountProfile : Profile
 
         // Domain Entity to DTO mappings
 
-        CreateMap<Account, AccountDetailsDto>()
+        CreateMap<CoreBanking.Core.Entities.Account, CoreBanking.Application.Accounts.Queries.GetAccountDetails.GetAccountDetailsQuery.AccountDetailsDto>()
 
             .ForMember(dest => dest.AccountNumber, opt => opt.MapFrom(src => src.AccountNumber.Value))
 
@@ -36,9 +36,9 @@ public class AccountProfile : Profile
 
         // Command to Domain Entity mappings (for complex scenarios)
 
-        CreateMap<CreateAccountCommand, Account>()
+        CreateMap<CreateAccountCommand, CoreBanking.Core.Entities.Account>()
 
-            .ConstructUsing(src => Account.Create(
+            .ConstructUsing(src => CoreBanking.Core.Entities.Account.Create(
 
                 src.CustomerId,
 
@@ -67,7 +67,7 @@ public class AccountProfile : Profile
             .ForMember(dest => dest.Currency, opt => opt.MapFrom(src => src.Amount.Currency));
 
 
-        CreateMap<Account, AccountSummaryDto>()
+        CreateMap<CoreBanking.Core.Entities.Account, AccountSummaryDto>()
 
        .ForMember(dest => dest.DisplayName,
 

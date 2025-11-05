@@ -6,20 +6,42 @@ using CoreBanking.Core.ValueObjects;
 
 namespace CoreBanking.Core.Events;
 
-public class MoneyTransferredEvent : IDomainEvent
-{
-    public Account SourceAccount { get; }
-    public Account DestinationAccount { get; }
-    public Money Amount { get; }
-    public string Reference { get; }
-    public DateTime OccurredOn { get; }
+public record MoneyTransferedEvent : DomainEvent
 
-    public MoneyTransferredEvent(Account sourceAccount, Account destinationAccount, Money amount, string reference)
+{
+
+    public TransactionId TransactionId { get; }
+
+    public AccountNumber SourceAccountNumber { get; }
+
+    public AccountNumber DestinationAccountNumber { get; }
+
+    public Money Amount { get; }
+
+    public string Reference { get; }
+
+    public DateTime TransferDate { get; }
+
+
+
+    public MoneyTransferedEvent(TransactionId transactionId, AccountNumber sourceAccountNumber,
+
+        AccountNumber destinationAccountNumber, Money amount, string reference)
+
     {
-        SourceAccount = sourceAccount;
-        DestinationAccount = destinationAccount;
+
+        TransactionId = transactionId;
+
+        SourceAccountNumber = sourceAccountNumber;
+
+        DestinationAccountNumber = destinationAccountNumber;
+
         Amount = amount;
+
         Reference = reference;
-        OccurredOn = DateTime.UtcNow;
+
+        TransferDate = DateTime.UtcNow;
+
     }
+
 }
