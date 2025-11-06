@@ -1,6 +1,7 @@
-﻿using CoreBanking.Core.ValueObjects;
+﻿using CoreBanking.Application.Accounts.Queries.GetAccountSummary;
+using CoreBanking.Core.ValueObjects;
 
-namespace CoreBanking.Application.Customers.Queries.GetCustomerDetailsDTO
+namespace CoreBanking.Application.Customers.Queries.GetCustomerDetails
 {
     public record CustomerDetailsDto
     {

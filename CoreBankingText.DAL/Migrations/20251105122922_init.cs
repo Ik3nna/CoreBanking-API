@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CoreBanking.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -29,6 +29,23 @@ namespace CoreBanking.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Customers", x => x.CustomerId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "OutboxMessages",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Type = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    OccurredOn = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ProcessedOn = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Error = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    RetryCount = table.Column<int>(type: "int", nullable: false, defaultValue: 0)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OutboxMessages", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -89,12 +106,12 @@ namespace CoreBanking.Infrastructure.Migrations
             migrationBuilder.InsertData(
                 table: "Customers",
                 columns: new[] { "CustomerId", "DateCreated", "DeletedAt", "DeletedBy", "Email", "FirstName", "IsActive", "IsDeleted", "LastName", "PhoneNumber" },
-                values: new object[] { new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"), new DateTime(2025, 10, 4, 8, 20, 36, 699, DateTimeKind.Utc).AddTicks(939), null, null, "alice.johnson@email.com", "Alice", true, false, "Johnson", "555-0101" });
+                values: new object[] { new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"), new DateTime(2025, 10, 1, 10, 0, 0, 0, DateTimeKind.Utc), null, null, "alice.johnson@email.com", "Alice", true, false, "Johnson", "555-0101" });
 
             migrationBuilder.InsertData(
                 table: "Accounts",
                 columns: new[] { "AccountId", "AccountNumber", "AccountType", "CustomerId", "DateOpened", "DeletedAt", "DeletedBy", "IsActive", "IsDeleted", "Amount", "Currency" },
-                values: new object[] { new Guid("c3d4e5f6-3456-7890-cde1-345678901cde"), "1000000001", "Checking", new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"), new DateTime(2025, 10, 14, 8, 20, 36, 699, DateTimeKind.Utc).AddTicks(1780), null, null, true, false, 1500.00m, "NGN" });
+                values: new object[] { new Guid("c3d4e5f6-3456-7890-cde1-345678901cde"), "1234567890", "Checking", new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"), new DateTime(2025, 10, 11, 10, 0, 0, 0, DateTimeKind.Utc), null, null, true, false, 1500.00m, "NGN" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Accounts_CustomerId",
@@ -110,6 +127,9 @@ namespace CoreBanking.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "OutboxMessages");
+
             migrationBuilder.DropTable(
                 name: "Transactions");
 

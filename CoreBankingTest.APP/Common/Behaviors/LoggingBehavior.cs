@@ -18,13 +18,14 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         var requestName = typeof(TRequest).Name;
 
         _logger.LogInformation("Handling command {CommandName} with payload {@Request}", requestName, request);
+
         var timer = System.Diagnostics.Stopwatch.StartNew();
         var response = await next();
         timer.Stop();
 
-        _logger.LogInformation("Command {CommandName} handled in {ElapsedMilliseconds}ms", requestName, timer.ElapsedMilliseconds);
+        _logger.LogInformation("Command {CommandName} handled in {ElapsedMilliseconds}ms",
+            requestName, timer.ElapsedMilliseconds);
 
         return response;
     }
-
 }

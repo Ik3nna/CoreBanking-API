@@ -2,7 +2,9 @@
 using CoreBanking.Core.Common;
 using CoreBanking.Core.Entities;
 using CoreBanking.Core.Enums;
+using CoreBanking.Core.Events;
 using CoreBanking.Core.ValueObjects;
+using CoreBanking.Infrastructure.Persistence.Configurations;
 using CoreBanking.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -17,18 +19,21 @@ namespace CoreBanking.Infrastructure.Data
         public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<Account> Accounts => Set<Account>();
         public DbSet<Transaction> Transactions => Set<Transaction>();
-
         public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
 
-        public DbSet<DomainEvent> DomainEvents { get; set; }
+        public DbSet<DomainEvent> DomainEvents => Set<DomainEvent>();  
+
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
 
             modelBuilder.Ignore<DomainEvent>();
             modelBuilder.Ignore<IDomainEvent>();
+
 
             // Customer configuration
             modelBuilder.Entity<Customer>(entity =>
@@ -59,14 +64,12 @@ namespace CoreBanking.Infrastructure.Data
 
                 // Configure AccountNumber as owned type (Value Object)
                 entity.Property(a => a.AccountNumber)
-                .HasConversion(
-
-                    accountNumber => accountNumber.Value,
-
-                    value => AccountNumber.Create(value))
-                .HasColumnName("AccountNumber")
-                .HasMaxLength(10)
-                .IsRequired();
+                    .HasConversion(
+                        accountNumber => accountNumber.Value,
+                        value => AccountNumber.Create(value))
+                    .HasColumnName("AccountNumber")
+                    .HasMaxLength(10)
+                    .IsRequired();
 
                 // Configure Money as owned type (Value Object)
                 entity.OwnsOne(a => a.Balance, money =>
@@ -135,31 +138,29 @@ namespace CoreBanking.Infrastructure.Data
             });
 
             // Seed the DB
-            modelBuilder.Entity<Customer>().HasData(new
-            {
-                CustomerId = CustomerId.Create(Guid.Parse("a1b2c3d4-1234-5678-9abc-123456789abc")),
-                FirstName = "Alice",
-                LastName = "Johnson",
-                Email = "alice.johnson@email.com",
-                PhoneNumber = "555-0101",
-                DateCreated = DateTime.UtcNow.AddDays(-30),
+            modelBuilder.Entity<Customer>().HasData(new {
+                    CustomerId = CustomerId.Create(Guid.Parse("a1b2c3d4-1234-5678-9abc-123456789abc")),
+                    FirstName = "Alice",
+                    LastName = "Johnson",
+                    Email = "alice.johnson@email.com",
+                    PhoneNumber = "555-0101",
+                // 💡 FIXED: Use a static, specific UTC date
+                DateCreated = new DateTime(2025, 10, 1, 10, 0, 0, DateTimeKind.Utc),
                 IsActive = true,
-                IsDeleted = false
-            }
+                    IsDeleted = false
+                }
             );
 
-            modelBuilder.Entity<Account>().HasData(new
-            {
-
-                AccountId = AccountId.Create(Guid.Parse("c3d4e5f6-3456-7890-cde1-345678901cde")),
-                AccountNumber = AccountNumber.Create("1000000001"),
-                AccountType = AccountType.Checking, // EF handles enum conversion
-                CustomerId = CustomerId.Create(Guid.Parse("a1b2c3d4-1234-5678-9abc-123456789abc")),
-                Currency = "NGN",
-                DateOpened = DateTime.UtcNow.AddDays(-20),
+            modelBuilder.Entity<Account>().HasData(new {
+                    AccountId = AccountId.Create(Guid.Parse("c3d4e5f6-3456-7890-cde1-345678901cde")),
+                    AccountNumber = AccountNumber.Create("1234567890"),
+                    AccountType = AccountType.Checking, // EF handles enum conversion
+                    CustomerId = CustomerId.Create(Guid.Parse("a1b2c3d4-1234-5678-9abc-123456789abc")),
+                    Currency = "NGN",
+                DateOpened = new DateTime(2025, 10, 11, 10, 0, 0, DateTimeKind.Utc),
                 IsActive = true,
-                IsDeleted = false
-            }
+                    IsDeleted = false            
+                }
             );
 
             // Then configure the owned types separately
@@ -171,64 +172,39 @@ namespace CoreBanking.Infrastructure.Data
                     Currency = "NGN"
                 }
             );
+
+
+
+
         }
-
         public async Task SaveChangesWithOutboxAsync(CancellationToken cancellationToken = default)
-
         {
-
             // Convert domain events to outbox messages
-
             var events = ChangeTracker.Entries<AggregateRoot<AccountId>>()
-
                 .SelectMany(x => x.Entity.DomainEvents)
-
                 .Select(domainEvent => new OutboxMessage
-
                 {
-
                     Id = Guid.NewGuid(),
-
                     Type = domainEvent.GetType().Name,
-
                     Content = JsonSerializer.Serialize(domainEvent, domainEvent.GetType()),
-
-                    OccurredOn = domainEvent.OcurredOn
-
+                    OccurredOn = domainEvent.OccurredOn
                 })
-
                 .ToList();
 
-
-
             // Clear domain events from aggregates
-
             ChangeTracker.Entries<AggregateRoot<AccountId>>()
-
                 .ToList()
-
                 .ForEach(entry => entry.Entity.ClearDomainEvents());
 
-
-
             // Save changes (including outbox messages) in single transaction
-
             await base.SaveChangesAsync(cancellationToken);
 
-
-
             // Add outbox messages after saving to ensure they're included in transaction
-
             if (events.Any())
-
             {
-
                 await OutboxMessages.AddRangeAsync(events, cancellationToken);
-
                 await base.SaveChangesAsync(cancellationToken);
-
             }
-
         }
     }
 }

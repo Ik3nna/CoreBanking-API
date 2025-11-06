@@ -15,27 +15,6 @@ public record GetTransactionHistoryQuery : IQuery<TransactionHistoryDto>
     public int PageSize { get; init; } = 50;
 }
 
-public record TransactionHistoryDto
-{
-    public string AccountNumber { get; init; } = string.Empty;
-    public List<TransactionDto> Transactions { get; init; } = new();
-    public int TotalCount { get; init; }
-    public int Page { get; init; }
-    public int TotalPages { get; init; }
-}
-
-//public record TransactionDto
-//{
-//    public TransactionId TransactionId { get; init; }
-//    public string Type { get; init; } = string.Empty;
-//    public decimal Amount { get; init; }
-//    public string Currency { get; init; } = string.Empty;
-//    public string Description { get; init; } = string.Empty;
-//    public string Reference { get; init; } = string.Empty;
-//    public DateTime Timestamp { get; init; }
-//    public decimal RunningBalance { get; init; }
-//}
-
 public class GetTransactionHistoryQueryHandler : IRequestHandler<GetTransactionHistoryQuery, Result<TransactionHistoryDto>>
 {
     private readonly ITransactionRepository _transactionRepository;

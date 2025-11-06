@@ -12,15 +12,15 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CoreBanking.Infrastructure.Migrations
 {
     [DbContext(typeof(BankingDbContext))]
-    [Migration("20251105070809_CreateCustomers")]
-    partial class CreateCustomers
+    [Migration("20251105122922_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.0")
+                .HasAnnotation("ProductVersion", "9.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -74,10 +74,10 @@ namespace CoreBanking.Infrastructure.Migrations
                         new
                         {
                             AccountId = new Guid("c3d4e5f6-3456-7890-cde1-345678901cde"),
-                            AccountNumber = "1000000001",
+                            AccountNumber = "1234567890",
                             AccountType = "Checking",
                             CustomerId = new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"),
-                            DateOpened = new DateTime(2025, 10, 16, 7, 8, 8, 847, DateTimeKind.Utc).AddTicks(9014),
+                            DateOpened = new DateTime(2025, 10, 11, 10, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
                             IsDeleted = false
                         });
@@ -88,14 +88,7 @@ namespace CoreBanking.Infrastructure.Migrations
                     b.Property<Guid>("CustomerId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Address")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("DateOfBirth")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -138,9 +131,7 @@ namespace CoreBanking.Infrastructure.Migrations
                         new
                         {
                             CustomerId = new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"),
-                            Address = "Ikoyi, Lagos, Nigeria",
-                            DateCreated = new DateTime(2025, 10, 6, 7, 8, 8, 847, DateTimeKind.Utc).AddTicks(8616),
-                            DateOfBirth = new DateTime(1990, 5, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            DateCreated = new DateTime(2025, 10, 1, 10, 0, 0, 0, DateTimeKind.Utc),
                             Email = "alice.johnson@email.com",
                             FirstName = "Alice",
                             IsActive = true,

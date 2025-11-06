@@ -2,13 +2,8 @@
 namespace CoreBanking.Core.Common;
 
 public interface IDomainEvent
-
 {
-
     Guid EventId { get; }
-
-    DateTime OcurredOn { get; }
-
+    DateTime OccurredOn { get; }
     string EventType { get; }
-
 }

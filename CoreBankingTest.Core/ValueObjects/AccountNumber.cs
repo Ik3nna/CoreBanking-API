@@ -15,19 +15,10 @@
             Value = value;
         }
 
-        private AccountNumber()
-        {
-            Value = string.Empty; // safe default, no validation here
-        }
-        public static AccountNumber Create(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                throw new ArgumentException("Account number cannot be null or empty");
+        // EF Core needs this
+        private AccountNumber() : this(string.Empty) { }
 
-            value = value.Trim();
-            return new AccountNumber(value);
-        }
-
+        public static AccountNumber Create(string value) => new(value);
 
         public static implicit operator string(AccountNumber number) => number.Value;
         public static explicit operator AccountNumber(string value) => new(value);

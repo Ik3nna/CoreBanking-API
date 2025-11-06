@@ -1,8 +1,9 @@
 ﻿using CoreBanking.Application.Common.Models;
-using MediatR;
 using FluentValidation;
+using MediatR;
 
 namespace CoreBanking.Application.Common.Behaviors;
+
 public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
     where TResponse : Result
@@ -20,17 +21,24 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
             return await next();
 
         var context = new ValidationContext<TRequest>(request);
-        var validationResults = await Task.WhenAll(_validators.Select(v => v.ValidateAsync(context, cancellationToken)));
+        var validationResults = await Task.WhenAll(
+            _validators.Select(v => v.ValidateAsync(context, cancellationToken)));
 
-        var failures = validationResults.SelectMany(r => r.Errors).Where(f => f != null).ToList();
+        var failures = validationResults
+            .SelectMany(r => r.Errors)
+            .Where(f => f != null)
+            .ToList();
 
         if (failures.Any())
         {
+            // Create failure result
             var resultType = typeof(TResponse);
             if (resultType.IsGenericType)
             {
                 var genericType = resultType.GetGenericArguments()[0];
-                var failureMethod = typeof(Result<>).MakeGenericType(genericType).GetMethod(nameof(Result<object>.Failure))!;
+                var failureMethod = typeof(Result<>)
+                    .MakeGenericType(genericType)
+                    .GetMethod(nameof(Result<object>.Failure))!;
 
                 var errors = failures.Select(f => f.ErrorMessage).ToArray();
                 return (TResponse)failureMethod.Invoke(null, new object[] { errors })!;
@@ -38,5 +46,5 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
         }
 
         return await next();
-    } 
+    }
 }

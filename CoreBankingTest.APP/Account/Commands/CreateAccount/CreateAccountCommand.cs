@@ -1,10 +1,9 @@
-﻿
-using CoreBanking.Application.Common.Interfaces;
+﻿using CoreBanking.Application.Common.Interfaces;
 using CoreBanking.Application.Common.Models;
+using CoreBanking.Core.Entities;
 using CoreBanking.Core.Enums;
 using CoreBanking.Core.Interfaces;
 using CoreBanking.Core.ValueObjects;
-using CoreBanking.Core.Entities;
 using MediatR;
 
 namespace CoreBanking.Application.Accounts.Commands.CreateAccount;
@@ -17,6 +16,7 @@ public record CreateAccountCommand : ICommand<Guid>
     public string Currency { get; init; } = "NGN";
 }
 
+//public class CreateAccountCommandHandler : IRequestHandler<CreateAccountCommand, Result<Guid>>
 public class CreateAccountCommandHandler : IRequestHandler<CreateAccountCommand, Result<Guid>>
 {
     private readonly IAccountRepository _accountRepository;
@@ -44,7 +44,7 @@ public class CreateAccountCommandHandler : IRequestHandler<CreateAccountCommand,
         var accountNumber = await GenerateUniqueAccountNumberAsync();
 
         // Create account with initial deposit
-        var account = CoreBanking.Core.Entities.Account.Create(
+        var account = Account.Create(
             customerId: request.CustomerId,
             accountNumber: accountNumber,
             accountType: Enum.Parse<AccountType>(request.AccountType),

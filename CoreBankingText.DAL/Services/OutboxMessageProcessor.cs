@@ -1,186 +1,83 @@
-﻿
-using CoreBanking.Application.Common.Interfaces;
+﻿using CoreBanking.Application.Common.Interfaces;
 using CoreBanking.Core.Common;
 using CoreBanking.Infrastructure.Data;
 using CoreBanking.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 
-namespace CoreBanking.Infrastructure.Services;
-
-public class OutboxMessageProcessor : IOutboxMessageProcessor
-
+namespace CoreBanking.Infrastructure.Services
 {
-
-    private readonly BankingDbContext _context;
-
-    //private readonly IEventBus _eventBus;
-
-    private readonly ILogger<OutboxMessageProcessor> _logger;
-
-
-
-    public OutboxMessageProcessor(BankingDbContext context,
-
-        ILogger<OutboxMessageProcessor> logger)
-
+    public class OutboxMessageProcessor : IOutboxMessageProcessor
     {
+        private readonly BankingDbContext _context;
+        //private readonly IEventBus _eventBus;
+        private readonly ILogger<OutboxMessageProcessor> _logger;
 
-        _context = context;
-
-        _logger = logger;
-
-    }
-
-
-
-    public async Task ProcessOutboxMessagesAsync(CancellationToken cancellationToken = default)
-
-    {
-
-        var messages = await _context.OutboxMessages
-
-            .Where(x => x.ProcessedOn == null && x.RetryCount < 3)
-
-            .OrderBy(x => x.OccurredOn)
-
-            .Take(20)
-
-            .ToListAsync(cancellationToken);
-
-
-
-        foreach (var message in messages)
-
+        //public OutboxMessageProcessor(BankingDbContext context, IEventBus eventBus,
+        //    ILogger<OutboxMessageProcessor> logger)
+        //{
+        //    _context = context;
+        //    _eventBus = eventBus;
+        //    _logger = logger;
+        //}
+        public OutboxMessageProcessor(BankingDbContext context,
+            ILogger<OutboxMessageProcessor> logger)
         {
-
-            try
-
-            {
-
-                var domainEvent = DeserializeMessage(message);
-
-                //if (domainEvent != null)
-
-                //{
-
-                //    await _eventBus.PublishAsync(domainEvent, cancellationToken);
-
-                //}
-
-
-
-                message.ProcessedOn = DateTime.UtcNow;
-
-                message.Error = null;
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                _logger.LogError(ex, "Failed to process outbox message {MessageId}", message.Id);
-
-                message.RetryCount++;
-
-                message.Error = ex.Message;
-
-            }
-
+            _context = context;
+            //_eventBus = eventBus;
+            _logger = logger;
         }
 
-
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-    }
-
-
-
-    private static IDomainEvent? DeserializeMessage(OutboxMessage message)
-
-    {
-
-        var eventType = Type.GetType($"CoreBanking.Core.Accounts.Events.{message.Type}, CoreBanking.Core");
-
-        if (eventType == null)
-
-            return null;
-
-
-
-        return JsonSerializer.Deserialize(message.Content, eventType) as IDomainEvent;
-
-    }
-
-}
-
-
-
-// Background service for processing outbox
-
-public class OutboxBackgroundService : BackgroundService
-
-{
-
-    private readonly IServiceProvider _serviceProvider;
-
-    private readonly ILogger<OutboxBackgroundService> _logger;
-
-    private readonly TimeSpan _interval = TimeSpan.FromSeconds(30);
-
-
-
-    public OutboxBackgroundService(IServiceProvider serviceProvider, ILogger<OutboxBackgroundService> logger)
-
-    {
-
-        _serviceProvider = serviceProvider;
-
-        _logger = logger;
-
-    }
-
-
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-
-    {
-
-        while (!stoppingToken.IsCancellationRequested)
-
+        public async Task ProcessOutboxMessagesAsync(CancellationToken cancellationToken = default)
         {
+            var messages = await _context.OutboxMessages
+                .Where(x => x.ProcessedOn == null && x.RetryCount < 3)
+                .OrderBy(x => x.OccurredOn)
+                .Take(20).ToListAsync(cancellationToken);
 
-            try
 
+            foreach (var message in messages)
             {
+                try
+                {
+                    var domainEvent = DeserializeMessage(message);
+                    if (domainEvent != null)
+                    //{
+                    //    await _eventBus.PublishAsync(domainEvent, cancellationToken);
+                    //}
+                    
 
-                using var scope = _serviceProvider.CreateScope();
-
-                var processor = scope.ServiceProvider.GetRequiredService<IOutboxMessageProcessor>();
-
-                await processor.ProcessOutboxMessagesAsync(stoppingToken);
-
+                    message.ProcessedOn = DateTime.UtcNow;
+                    message.Error = null;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to process outbox message {MessageId}", message.Id);
+                    message.RetryCount++;
+                    message.Error = ex.Message;
+                }
             }
 
-            catch (Exception ex)
-
-            {
-
-                _logger.LogError(ex, "Error processing outbox messages");
-
-            }
-
-
-
-            await Task.Delay(_interval, stoppingToken);
-
+            await _context.SaveChangesAsync(cancellationToken);
         }
 
+        private static IDomainEvent? DeserializeMessage(OutboxMessage message)
+        {
+            var eventType = Type.GetType($"CoreBanking.Core.Accounts.Events.{message.Type}, CoreBanking.Core");
+            if (eventType == null)
+                return null;
+
+            return JsonSerializer.Deserialize(message.Content, eventType) as IDomainEvent;
+        }
     }
+
+    
 
 }

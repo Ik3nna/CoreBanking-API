@@ -1,4 +1,4 @@
-namespace CoreBankingTest.API
+namespace CoreBanking.API
 {
     public class WeatherForecast
     {

@@ -17,7 +17,7 @@ namespace CoreBanking.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.0")
+                .HasAnnotation("ProductVersion", "9.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -71,10 +71,10 @@ namespace CoreBanking.Infrastructure.Migrations
                         new
                         {
                             AccountId = new Guid("c3d4e5f6-3456-7890-cde1-345678901cde"),
-                            AccountNumber = "1000000001",
+                            AccountNumber = "1234567890",
                             AccountType = "Checking",
                             CustomerId = new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"),
-                            DateOpened = new DateTime(2025, 10, 16, 12, 44, 4, 27, DateTimeKind.Utc).AddTicks(4110),
+                            DateOpened = new DateTime(2025, 10, 11, 10, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
                             IsDeleted = false
                         });
@@ -128,7 +128,7 @@ namespace CoreBanking.Infrastructure.Migrations
                         new
                         {
                             CustomerId = new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"),
-                            DateCreated = new DateTime(2025, 10, 6, 12, 44, 4, 27, DateTimeKind.Utc).AddTicks(3831),
+                            DateCreated = new DateTime(2025, 10, 1, 10, 0, 0, 0, DateTimeKind.Utc),
                             Email = "alice.johnson@email.com",
                             FirstName = "Alice",
                             IsActive = true,

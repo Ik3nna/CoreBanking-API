@@ -54,7 +54,7 @@ namespace CoreBanking.Core.Entities
         {
             _accounts.Add(account);
         }
-
+        
         public void SoftDelete(string deletedBy)
         {
             if (Accounts.Any(a => a.Balance.Amount > 0))
