@@ -1,5 +1,5 @@
 ﻿using AutoMapper;
-using Corebanking;
+//using Corebanking;
 using CoreBanking.Application.Accounts.Commands.TransferMoney;
 using CoreBanking.Application.Accounts.Queries.GetTransactionHistory;
 using CoreBanking.Core.ValueObjects;
@@ -7,7 +7,9 @@ using Grpc.Core;
 using MediatR;
 
 namespace CoreBanking.API.gRPC.Services
+
 {
+    //public class EnhancedAccountGrpcService : EnhancedAccountService.EnhancedAccountServiceBase
     public class EnhancedAccountGrpcService : EnhancedAccountService.EnhancedAccountServiceBase
     {
         private readonly IMediator _mediator;

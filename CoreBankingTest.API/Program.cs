@@ -1,17 +1,22 @@
-using CoreBanking.API.gRPC.Interceptors;
+using CoreBanking.API.Extensions;
 using CoreBanking.API.gRPC.Mappings;
 using CoreBanking.API.gRPC.Services;
 using CoreBanking.API.Hubs;
 using CoreBanking.API.Hubs.EventHandlers;
+using CoreBanking.API.Hubs.Management;
 using CoreBanking.API.Middleware;
+using CoreBanking.API.Services;
 using CoreBanking.Application.Accounts.Commands.CreateAccount;
 using CoreBanking.Application.Accounts.EventHandlers;
 using CoreBanking.Application.Common.Behaviors;
 using CoreBanking.Application.Common.Interfaces;
 using CoreBanking.Application.Common.Mappings;
+using CoreBanking.Application.External.HttpClients;
+using CoreBanking.Application.External.Interfaces;
 using CoreBanking.Core.Events;
 using CoreBanking.Core.Interfaces;
 using CoreBanking.Infrastructure.Data;
+using CoreBanking.Infrastructure.External.Resilience;
 using CoreBanking.Infrastructure.Repositories;
 using CoreBanking.Infrastructure.Services;
 using FluentValidation;
@@ -19,139 +24,179 @@ using MediatR;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using System.Reflection;
+using Polly;
+using Polly.Extensions.Http;
 
-namespace CoreBanking.API
+public class Program
 {
-    public class Program
+    public static void Main(string[] args)
     {
-        public static void Main(string[] args)
+        var builder = WebApplication.CreateBuilder(args);
+
+        // ------------------- SERVICES -------------------
+
+        builder.Services.AddDbContext<BankingDbContext>(options =>
+            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+        // Core dependencies
+        builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+        builder.Services.AddScoped<IAccountRepository, AccountRepository>();
+        builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+        builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+        builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+
+        // Event handlers
+        builder.Services.AddTransient<INotificationHandler<AccountCreatedEvent>, AccountCreatedEventHandler>();
+        builder.Services.AddTransient<INotificationHandler<MoneyTransferedEvent>, MoneyTransferedEventHandler>();
+        builder.Services.AddTransient<INotificationHandler<InsufficientFundsEvent>, InsufficientFundsEventHandler>();
+        builder.Services.AddTransient<INotificationHandler<MoneyTransferedEvent>, RealTimeNotificationEventHandler>();
+
+        // Pipeline behaviors
+        builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(DomainEventsBehavior<,>));
+        builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+
+        // gRPC + Reflection
+        builder.Services.AddGrpc(options =>
         {
-            var builder = WebApplication.CreateBuilder(args);
+            options.EnableDetailedErrors = true;
+        });
+        builder.Services.AddGrpcReflection();
 
-            // ------------------- SERVICES -------------------
+        // SignalR
+        builder.Services.AddSignalR();
 
-            builder.Services.AddDbContext<BankingDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+        // MediatR setup
+        builder.Services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(CreateAccountCommand).Assembly);
+            cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+            cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+            cfg.AddOpenBehavior(typeof(DomainEventsBehavior<,>));
+        });
 
-            // Core dependencies
-            builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
-            builder.Services.AddScoped<IAccountRepository, AccountRepository>();
-            builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
-            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-            builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+        // Validation and mapping
+        builder.Services.AddValidatorsFromAssembly(typeof(CreateAccountCommandValidator).Assembly);
+        builder.Services.AddAutoMapper(cfg => { }, typeof(AccountProfile).Assembly);
+        builder.Services.AddAutoMapper(cfg => { }, typeof(AccountGrpcProfile).Assembly);
 
-            // Event handlers
-            builder.Services.AddTransient<INotificationHandler<AccountCreatedEvent>, AccountCreatedEventHandler>();
-            builder.Services.AddTransient<INotificationHandler<MoneyTransferedEvent>, MoneyTransferedEventHandler>();
-            builder.Services.AddTransient<INotificationHandler<InsufficientFundsEvent>, InsufficientFundsEventHandler>();
-            builder.Services.AddTransient<INotificationHandler<MoneyTransferedEvent>, RealTimeNotificationEventHandler>();
+        // Outbox
+        builder.Services.AddScoped<IOutboxMessageProcessor, OutboxMessageProcessor>();
+        builder.Services.AddHostedService<OutboxBackgroundService>();
 
-            // Pipeline behaviors
-            builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(DomainEventsBehavior<,>));
-            builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-            builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
-
-            // gRPC + Reflection
-            builder.Services.AddGrpc(options =>
+        // Controllers + Swagger
+        builder.Services.AddControllers();
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen(c =>
+        {
+            c.SwaggerDoc("v1", new OpenApiInfo
             {
-                options.EnableDetailedErrors = true;
+                Title = "CoreBanking API",
+                Version = "v1",
+                Description = "A modern banking API built with Clean Architecture, DDD, and CQRS"
             });
-            builder.Services.AddGrpcReflection();
+        });
 
-            // SignalR
-            builder.Services.AddSignalR();
+        // Kestrel multi-protocol setup
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            // HTTP/1.1 for REST, Swagger, etc.
+            options.ListenLocalhost(5037, o => o.Protocols = HttpProtocols.Http1);
 
-            // MediatR setup
-            builder.Services.AddMediatR(cfg =>
+            // HTTP/2 for gRPC
+            options.ListenLocalhost(7288, o =>
             {
-                cfg.RegisterServicesFromAssembly(typeof(CreateAccountCommand).Assembly);
-                cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
-                cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
-                cfg.AddOpenBehavior(typeof(DomainEventsBehavior<,>));
+                o.UseHttps();
+                o.Protocols = HttpProtocols.Http2;
             });
+        });
+        // Add SignalR services
+        builder.Services.AddSignalR(options =>
+        {
+            options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+            options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+            options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+            options.MaximumReceiveMessageSize = 64 * 1024; // 64KB
+        })
+        .AddMessagePackProtocol();
 
-            // Validation and mapping
-            builder.Services.AddValidatorsFromAssembly(typeof(CreateAccountCommandValidator).Assembly);
-            builder.Services.AddAutoMapper(cfg => { }, typeof(AccountProfile).Assembly);
-            builder.Services.AddAutoMapper(cfg => { }, typeof(AccountGrpcProfile).Assembly);
+        // Add connection state management
+        builder.Services.AddSingleton<ConnectionStateService>();
 
-            // Outbox
-            builder.Services.AddScoped<IOutboxMessageProcessor, OutboxMessageProcessor>();
-            builder.Services.AddHostedService<OutboxBackgroundService>();
+        // Add hosted services
+        builder.Services.AddHostedService<TransactionBroadcastService>();
 
-            // Controllers + Swagger
-            builder.Services.AddControllers();
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen(c =>
-            {
-                c.SwaggerDoc("v1", new OpenApiInfo
+        // Add external HTTP clients with resilience
+        builder.Services.AddExternalHttpClients(builder.Configuration);
+
+        // Add resilience services
+        builder.Services.AddSingleton<IResilientHttpClientService, ResilientHttpClientService>();
+
+        // Register Polly policies
+        builder.Services.AddSingleton(HttpPolicyExtensions
+            .HandleTransientHttpError()
+            .OrResult(msg => !msg.IsSuccessStatusCode)
+            .WaitAndRetryAsync(
+                retryCount: 3,
+                sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                onRetry: (outcome, timespan, retryCount, context) =>
                 {
-                    Title = "CoreBanking API",
-                    Version = "v1",
-                    Description = "A modern banking API built with Clean Architecture, DDD, and CQRS"
-                });
+                    var logger = ContextExtensions.GetLogger(context);
+                    logger?.LogWarning("Retry {RetryCount} after {Delay}ms",
+                        retryCount, timespan.TotalMilliseconds);
+                }));
+
+        builder.Services.AddHttpClient<ICreditScoringServiceClient, CreditScoringServiceClient>(client =>
+        {
+            client.BaseAddress = new Uri(builder.Configuration["CreditScoringApi:BaseUrl"] ?? "https://api.example.com");
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+        });
+
+
+        var app = builder.Build();
+
+        // ------------------- PIPELINE -------------------
+
+        app.UseHttpsRedirection();
+
+        app.UseStaticFiles(); // Enables wwwroot
+
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseSwagger(options => options.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi2_0);
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "CoreBanking API v1");
+                c.RoutePrefix = "swagger";
             });
 
-            // Kestrel multi-protocol setup
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                // HTTP/1.1 for REST, Swagger, etc.
-                options.ListenLocalhost(5037, o => o.Protocols = HttpProtocols.Http1);
-
-                // HTTP/2 for gRPC
-                options.ListenLocalhost(7288, o =>
-                {
-                    o.UseHttps();
-                    o.Protocols = HttpProtocols.Http2;
-                });
-            });
-
-            var app = builder.Build();
-
-            // ------------------- PIPELINE -------------------
-
-            app.UseHttpsRedirection();
-
-            app.UseStaticFiles(); // Enables wwwroot
-
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger(options => options.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi2_0);
-                app.UseSwaggerUI(c =>
-                {
-                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "CoreBanking API v1");
-                    c.RoutePrefix = "swagger";
-                });
-
-                app.MapGrpcReflectionService();
-            }
-
-            app.UseAuthorization();
-
-            app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
-
-            // ------------------- ROUTING -------------------
-
-            // REST API
-            app.MapControllers();
-
-            // gRPC endpoints
-            app.MapGrpcService<AccountGrpcService>();
-            app.MapGrpcService<EnhancedAccountGrpcService>();
-
-            // SignalR hub
-            app.MapHub<EnhancedNotificationHub>("/hubs/enhanced-notifications");
-            app.MapHub<NotificationHub>("/hubs/notifications");
-            app.MapHub<TransactionHub>("/hubs/transactions");
-
-            // Static file fallback (optional)
-            app.MapFallbackToFile("index.html");
-
-            // Root landing page
-            app.MapGet("/", () => "CoreBanking API is running. Visit /swagger for REST or use gRPC client.");
-
-            app.Run();
+            app.MapGrpcReflectionService();
         }
+
+        app.UseAuthorization();
+
+        app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
+        // ------------------- ROUTING -------------------
+
+        // REST API
+        app.MapControllers();
+
+        // gRPC endpoints
+        app.MapGrpcService<AccountGrpcService>();
+        app.MapGrpcService<EnhancedAccountGrpcService>();
+
+        // SignalR hub
+        app.MapHub<EnhancedNotificationHub>("/hubs/enhanced-notifications");
+        app.MapHub<NotificationHub>("/hubs/notifications");
+        app.MapHub<TransactionHub>("/hubs/transactions");
+
+        // Static file fallback (optional)
+        app.MapFallbackToFile("index.html");
+
+        // Root landing page
+        app.MapGet("/", () => "CoreBanking API is running. Visit /swagger for REST or use gRPC client.");
+
+        app.Run();
     }
 }

@@ -1,9 +1,8 @@
-﻿//Console App Program.cs:
-using Grpc.Net.Client;
+﻿using Grpc.Net.Client;
 using Google.Protobuf.WellKnownTypes;
 //using CoreBanking.API.gRPC;
-using Grpc.Core;
-using CoreBanking.API.gRPC; // from your proto namespace
+using CoreBanking.API.gRPC;
+using Grpc.Core; // from your proto namespace
 
 namespace CoreBanking.GrpcClient
 {
@@ -15,7 +14,6 @@ namespace CoreBanking.GrpcClient
 
             // Adjust the address if needed
             var channel = GrpcChannel.ForAddress("https://localhost:7288");
-            //var client = new EnhancedAccountService.EnhancedAccountServiceClient(channel);
             var client = new EnhancedAccountService.EnhancedAccountServiceClient(channel);
 
             using var call = client.LiveTrading();

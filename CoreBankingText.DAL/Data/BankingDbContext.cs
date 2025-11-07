@@ -138,20 +138,23 @@ namespace CoreBanking.Infrastructure.Data
             });
 
             // Seed the DB
-            modelBuilder.Entity<Customer>().HasData(new {
-                    CustomerId = CustomerId.Create(Guid.Parse("a1b2c3d4-1234-5678-9abc-123456789abc")),
-                    FirstName = "Alice",
-                    LastName = "Johnson",
-                    Email = "alice.johnson@email.com",
-                    PhoneNumber = "555-0101",
-                // 💡 FIXED: Use a static, specific UTC date
-                DateCreated = new DateTime(2025, 10, 1, 10, 0, 0, DateTimeKind.Utc),
+            modelBuilder.Entity<Customer>().HasData(new
+            {
+                CustomerId = CustomerId.Create(Guid.Parse("a1b2c3d4-1234-5678-9abc-123456789abc")),
+                FirstName = "Alice",
+                LastName = "Johnson",
+                Email = "alice.johnson@email.com",
+                PhoneNumber = "555-0101",
+                BVN = "20000000000",
+                CreditScore = 40,
+                Address = "Ikoyi, Lagos",
+                DateOfBirth = DateTime.UtcNow.AddYears(-30),
+                DateCreated = DateTime.UtcNow.AddDays(-30),
                 IsActive = true,
-                    IsDeleted = false
-                }
-            );
+                IsDeleted = false,
+            });
 
-            modelBuilder.Entity<Account>().HasData(new {
+             modelBuilder.Entity<Account>().HasData(new {
                     AccountId = AccountId.Create(Guid.Parse("c3d4e5f6-3456-7890-cde1-345678901cde")),
                     AccountNumber = AccountNumber.Create("1234567890"),
                     AccountType = AccountType.Checking, // EF handles enum conversion
