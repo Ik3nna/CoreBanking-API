@@ -1,13 +1,13 @@
 ﻿using CoreBanking.Application.Common.Exceptions;
 using CoreBanking.Application.Common.Interfaces;
+using CoreBanking.Application.Common.Models;
 using CoreBanking.Application.External.Interfaces;
-//using CoreBanking.Core.Common;
 using CoreBanking.Core.Entities;
 using CoreBanking.Core.Interfaces;
 using CoreBanking.Core.ValueObjects;
-using CoreBanking.Application.Common.Models;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Polly;
 using System.Text;
 using System.Text.Json;
 
@@ -31,6 +31,9 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 
     private readonly IHttpClientFactory _httpClientFactory;
 
+    private readonly ISimulatedCreditScoringService _creditScoringService;
+
+    private readonly IResilienceService _resilienceService;
 
 
     public CreateCustomerCommandHandler(
@@ -45,7 +48,11 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 
         IResilientHttpClientService resilientClient,
 
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+
+        ISimulatedCreditScoringService creditScoringService,
+
+       IResilienceService resilienceService)
 
     {
 
@@ -60,6 +67,10 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         _resilientClient = resilientClient;
 
         _httpClientFactory = httpClientFactory;
+
+        _creditScoringService = creditScoringService;
+
+        _resilienceService = resilienceService;
 
     }
 
@@ -79,30 +90,66 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 
             // Step 1: Validate customer with external BVN service
 
-            var bvnValidationResult = await ValidateBVNWithResilienceAsync(request, cancellationToken);
+            //var bvnValidationResult = await ValidateBVNWithResilienceAsync(request, cancellationToken);
+
+            //if (!bvnValidationResult.IsValid)
+
+            //{
+
+            //    return Result<CustomerId>.Failure($"BVN validation failed: {bvnValidationResult.Reason}");
+
+            //}
+
+
+            // Validate BVN with advanced resilience
+
+            var bvnValidationResult = await ValidateBVNWithAdvancedResilienceAsync(request.BVN, cancellationToken);
 
             if (!bvnValidationResult.IsValid)
 
             {
 
-                return Result<CustomerId>.Failure($"BVN validation failed: {bvnValidationResult.Reason}");
+                return Result<CustomerId>.Failure($"BVN validation failed: {bvnValidationResult.Message}");
 
             }
 
+            // Validate customer details
 
+            var customerValidation = await ValidateCustomerDetailsWithResilienceAsync(request, cancellationToken);
 
-            // Step 2: Check credit score with resilience
-
-            var creditScore = await GetCreditScoreWithResilienceAsync(request.BVN, cancellationToken);
-
-            if (!creditScore.IsSuccess || creditScore.Score < 300)
+            if (!customerValidation.IsValid)
 
             {
 
-                return Result<CustomerId>.Failure("Credit score below minimum requirement");
+                return Result<CustomerId>.Failure($"Customer validation failed: {customerValidation.Reason}");
 
             }
 
+            // Step 2: Check credit score with resilience
+
+            //var creditScore = await GetCreditScoreWithResilienceAsync(request.BVN, cancellationToken);
+
+            //if (!creditScore.IsSuccess || creditScore.Score < 300)
+
+            //{
+
+            //    return Result<CustomerId>.Failure("Credit score below minimum requirement");
+
+            //}
+
+            // Get credit score with circuit breaker protection
+
+            var creditScore = await GetCreditScoreWithCircuitBreakerAsync(request.BVN, cancellationToken);
+
+            if (!creditScore.IsSuccess || creditScore.Score < 350)
+
+            {
+
+                return Result<CustomerId>.Failure(
+
+                    $"Credit score {creditScore.Score} below minimum requirement (350)");
+
+            }
 
 
             // Step 3: Create customer entity
@@ -148,6 +195,9 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
                 customer.CustomerId, creditScore.Score);
 
 
+            await PublishCustomerCreatedEvent(customer, creditScore);
+
+
 
             return Result<CustomerId>.Success(customer.CustomerId);
 
@@ -175,78 +225,67 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 
     }
 
+    private async Task<CSValidationResponse> ValidateBVNWithResilienceAsync(CreateCustomerCommand request, CancellationToken cancellationToken)
+    {
+        var bvnClient = _httpClientFactory.CreateClient("BVNValidation");
+        var validationRequest = new CSCustomerValidationRequest { CustomerId = request.BVN, FullName = $"{request.FirstName} {request.LastName}", DateOfBirth = request.DateOfBirth, BVN = request.BVN };
+        // Using resilient execution for BVN validation       
+        var response = await _resilientClient.ExecuteHttpRequestWithResilienceAsync(            
+            async () =>            
+            {                
+                var jsonContent = JsonSerializer.Serialize(validationRequest);                
+                var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");               
+                return await bvnClient.PostAsync("/api/validate", httpContent, cancellationToken);           
+            },           
+            "BVNValidation",            
+            cancellationToken);
+        if (response.IsSuccessStatusCode) { var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<CSValidationResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new CSValidationResponse { IsValid = false, Reason = "Invalid response format" }; }
+        return new CSValidationResponse { IsValid = false, Reason = $"Service returned {response.StatusCode}" };
+    }
+
+    private async Task<SimulatedValidationResponse> ValidateCustomerDetailsWithResilienceAsync(CreateCustomerCommand request, CancellationToken cancellationToken)
+    {
+        var validationRequest = new SimulatedValidationRequest 
+        { 
+            BVN = request.BVN, 
+            FullName = $"{request.FirstName} {request.LastName}",
+            DateOfBirth = request.DateOfBirth 
+        };
+        return await _resilientClient.ExecuteWithResilienceAsync(async (ct) => await _creditScoringService.ValidateCustomerAsync(validationRequest, ct), "CustomerValidation", cancellationToken);
+    }
+
+    private async Task<SimulatedCreditScoreResponse> GetCreditScoreWithCircuitBreakerAsync(
+         string bvn, CancellationToken cancellationToken)
+    {
+        return await _resilienceService.ExecuteWithResilienceAsync(
+            async (ct) => await _creditScoringService.GetCreditScoreAsync(bvn, ct),
+            $"CreditScoreLookup-{bvn}",
+            cancellationToken);
+    }
 
 
-    private async Task<CSValidationResponse> ValidateBVNWithResilienceAsync(
-
-        CreateCustomerCommand request, CancellationToken cancellationToken)
+    private async Task PublishCustomerCreatedEvent(Customer customer, SimulatedCreditScoreResponse creditScore)
 
     {
 
-        var bvnClient = _httpClientFactory.CreateClient("BVNValidation");
+        _logger.LogInformation(
 
+            "Would publish CustomerCreatedEvent for {CustomerId} with credit band {Band}",
 
-
-        var validationRequest = new CSCustomerValidationRequest
-
-        {
-
-            CustomerId = request.BVN,
-
-            FullName = $"{request.FirstName} {request.LastName}",
-
-            DateOfBirth = request.DateOfBirth,
-
-            BVN = request.BVN
-
-        };
-
-
-
-        // Using resilient execution for BVN validation
-
-        var response = await _resilientClient.ExecuteHttpRequestWithResilienceAsync(
-
-            async () =>
-
-            {
-
-                var jsonContent = JsonSerializer.Serialize(validationRequest);
-
-                var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-                return await bvnClient.PostAsync("/api/validate", httpContent, cancellationToken);
-
-            },
-
-            "BVNValidation",
-
-            cancellationToken);
-
-
-
-        if (response.IsSuccessStatusCode)
-
-        {
-
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
-
-            return JsonSerializer.Deserialize<CSValidationResponse>(content, new JsonSerializerOptions
-
-            {
-
-                PropertyNameCaseInsensitive = true
-
-            }) ?? new CSValidationResponse { IsValid = false, Reason = "Invalid response format" };
-
-        }
-
-
-
-        return new CSValidationResponse { IsValid = false, Reason = $"Service returned {response.StatusCode}" };
+            customer.CustomerId, creditScore.Band);
 
     }
 
+
+    private async Task<SimulatedBVNResponse> ValidateBVNWithAdvancedResilienceAsync(
+     string bvn, CancellationToken cancellationToken)
+    {
+        return await _resilienceService.ExecuteWithResilienceAsync(
+            async (ct) => await _creditScoringService.ValidateBVNAsync(bvn, ct),
+            $"BVNValidation-{bvn}",
+            cancellationToken);
+    }
 
 
     private async Task<CSCreditScoreResponse> GetCreditScoreWithResilienceAsync(

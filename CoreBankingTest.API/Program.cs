@@ -11,6 +11,7 @@ using CoreBanking.Application.Accounts.EventHandlers;
 using CoreBanking.Application.Common.Behaviors;
 using CoreBanking.Application.Common.Interfaces;
 using CoreBanking.Application.Common.Mappings;
+using CoreBanking.Application.Common.Models;
 using CoreBanking.Application.External.HttpClients;
 using CoreBanking.Application.External.Interfaces;
 using CoreBanking.Core.Events;
@@ -18,6 +19,7 @@ using CoreBanking.Core.Interfaces;
 using CoreBanking.Infrastructure.Data;
 using CoreBanking.Infrastructure.External.Resilience;
 using CoreBanking.Infrastructure.Repositories;
+using CoreBanking.Infrastructure.ServiceBus;
 using CoreBanking.Infrastructure.Services;
 using FluentValidation;
 using MediatR;
@@ -56,6 +58,14 @@ public class Program
         builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 
+        // Add resilience options
+
+        builder.Services.Configure<ResilienceOptions>(builder.Configuration.GetSection("Resilience"));
+
+        // Add advanced Polly policies
+
+        builder.Services.AddSingleton<AdvancedPollyPolicies>();
+
         // gRPC + Reflection
         builder.Services.AddGrpc(options =>
         {
@@ -83,6 +93,27 @@ public class Program
         // Outbox
         builder.Services.AddScoped<IOutboxMessageProcessor, OutboxMessageProcessor>();
         builder.Services.AddHostedService<OutboxBackgroundService>();
+
+        // Add simulated external services
+
+        builder.Services.AddSingleton<ISimulatedCreditScoringService, SimulatedCreditScoringService>();
+
+        // Add Azure Service Bus (simulated for now - will configure properly in subscequent class)
+        //builder.Services.AddSingleton<IServiceBusSender>(provider =>
+
+        //{
+
+        //    var logger = provider.GetRequiredService<ILogger<ServiceBusSender>>();
+
+        //    // For today, we'll use a mock. Tomorrow we'll add real Azure Service Bus connection
+
+        //    return new MockServiceBusSender(logger);
+
+        //});
+
+        builder.Services.AddSingleton<IEventPublisher, ServiceBusEventPublisher>();
+
+        builder.Services.AddScoped<IDomainEventDispatcher, ServiceBusEventDispatcher>();
 
         // Controllers + Swagger
         builder.Services.AddControllers();
