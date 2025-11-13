@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CoreBanking.Infrastructure.Migrations
 {
     [DbContext(typeof(BankingDbContext))]
-    [Migration("20251105122922_init")]
+    [Migration("20251113091355_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -74,10 +74,10 @@ namespace CoreBanking.Infrastructure.Migrations
                         new
                         {
                             AccountId = new Guid("c3d4e5f6-3456-7890-cde1-345678901cde"),
-                            AccountNumber = "1234567890",
+                            AccountNumber = "1000000001",
                             AccountType = "Checking",
                             CustomerId = new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"),
-                            DateOpened = new DateTime(2025, 10, 11, 10, 0, 0, 0, DateTimeKind.Utc),
+                            DateOpened = new DateTime(2024, 10, 10, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
                             IsDeleted = false
                         });
@@ -88,7 +88,17 @@ namespace CoreBanking.Infrastructure.Migrations
                     b.Property<Guid>("CustomerId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("BVN")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("CreditScore")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("DateCreated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DateOfBirth")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -131,7 +141,10 @@ namespace CoreBanking.Infrastructure.Migrations
                         new
                         {
                             CustomerId = new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"),
-                            DateCreated = new DateTime(2025, 10, 1, 10, 0, 0, 0, DateTimeKind.Utc),
+                            BVN = "20000000009",
+                            CreditScore = 40,
+                            DateCreated = new DateTime(2024, 10, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DateOfBirth = new DateTime(1995, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "alice.johnson@email.com",
                             FirstName = "Alice",
                             IsActive = true,

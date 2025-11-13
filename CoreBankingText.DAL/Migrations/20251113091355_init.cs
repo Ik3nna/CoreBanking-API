@@ -24,7 +24,10 @@ namespace CoreBanking.Infrastructure.Migrations
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    DeletedBy = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    DeletedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    BVN = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreditScore = table.Column<int>(type: "int", nullable: false),
+                    DateOfBirth = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -105,13 +108,13 @@ namespace CoreBanking.Infrastructure.Migrations
 
             migrationBuilder.InsertData(
                 table: "Customers",
-                columns: new[] { "CustomerId", "DateCreated", "DeletedAt", "DeletedBy", "Email", "FirstName", "IsActive", "IsDeleted", "LastName", "PhoneNumber" },
-                values: new object[] { new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"), new DateTime(2025, 10, 1, 10, 0, 0, 0, DateTimeKind.Utc), null, null, "alice.johnson@email.com", "Alice", true, false, "Johnson", "555-0101" });
+                columns: new[] { "CustomerId", "BVN", "CreditScore", "DateCreated", "DateOfBirth", "DeletedAt", "DeletedBy", "Email", "FirstName", "IsActive", "IsDeleted", "LastName", "PhoneNumber" },
+                values: new object[] { new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"), "20000000009", 40, new DateTime(2024, 10, 1, 0, 0, 0, 0, DateTimeKind.Utc), new DateTime(1995, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, null, "alice.johnson@email.com", "Alice", true, false, "Johnson", "555-0101" });
 
             migrationBuilder.InsertData(
                 table: "Accounts",
                 columns: new[] { "AccountId", "AccountNumber", "AccountType", "CustomerId", "DateOpened", "DeletedAt", "DeletedBy", "IsActive", "IsDeleted", "Amount", "Currency" },
-                values: new object[] { new Guid("c3d4e5f6-3456-7890-cde1-345678901cde"), "1234567890", "Checking", new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"), new DateTime(2025, 10, 11, 10, 0, 0, 0, DateTimeKind.Utc), null, null, true, false, 1500.00m, "NGN" });
+                values: new object[] { new Guid("c3d4e5f6-3456-7890-cde1-345678901cde"), "1000000001", "Checking", new Guid("a1b2c3d4-1234-5678-9abc-123456789abc"), new DateTime(2024, 10, 10, 0, 0, 0, 0, DateTimeKind.Utc), null, null, true, false, 1500.00m, "NGN" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Accounts_CustomerId",

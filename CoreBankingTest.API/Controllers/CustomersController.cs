@@ -2,14 +2,11 @@
 using CoreBanking.API.Models;
 using CoreBanking.API.Models.Requests;
 using CoreBanking.Application.Customers.Commands.CreateCustomer;
-using CoreBanking.Application.Common;
 using CoreBanking.Application.Customers.Queries.GetCustomerDetails;
 using CoreBanking.Application.Customers.Queries.GetCustomers;
 using CoreBanking.Core.ValueObjects;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-
-namespace CoreBanking.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -51,31 +48,48 @@ public class CustomersController : ControllerBase
         return Ok(ApiResponse<CustomerDetailsDto>.CreateSuccess(result.Data!));
     }
 
-    [HttpPost]
-    public async Task<IActionResult> EnhancedCreateCustomer([FromBody] CreateCustomerRequest request)
-    {
-        _logger.LogInformation("Received customer creation request for {Email}", request.Email);
-
-        var command = new CreateCustomerCommand
-        {
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            Email = request.Email,
-            PhoneNumber = request.Phone,
-            BVN = request.BVN,
-            Address = request.Address,
-            DateOfBirth = request.DateOfBirth
-        };
-
-        var result = await _mediator.Send(command);
-
-        if (result.IsSuccess)
-        {
-            _logger.LogInformation("Successfully created customer with ID {CustomerId}", result.Data);
-            return Ok(ApiResponse<CustomerId>.CreateSuccess(result.Data, "Customer created successfully"));
-        }
-
-        _logger.LogWarning("Failed to create customer: {Error}", result.Errors);
-        return BadRequest(ApiResponse<object>.CreateFailure(result.Errors));
+    [HttpPost("ordinary")]
+    [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<Guid>>> CreateCustomer([FromBody] CreateCustomerRequest request)
+    {
+        var command = _mapper.Map<CreateCustomerCommand>(request);
+        var result = await _mediator.Send(command);
+
+        if (!result.IsSuccess)
+            return BadRequest(ApiResponse.CreateFailure(result.Errors));
+
+        return CreatedAtAction(
+            nameof(GetCustomer),
+             new { customerId = result.Data },
+            ApiResponse<CustomerId>.CreateSuccess(result.Data!));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> EnhancedCreateCustomer([FromBody] CreateCustomerRequest request)
+    {
+        _logger.LogInformation("Received customer creation request for {Email}", request.Email);
+
+        var command = new CreateCustomerCommand
+        {
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            PhoneNumber = request.Phone,
+            BVN = request.BVN,
+            Address = request.Address,
+            DateOfBirth = request.DateOfBirth
+        };
+
+        var result = await _mediator.Send(command);
+
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Successfully created customer with ID {CustomerId}", result.Data);
+            return Ok(ApiResponse<CustomerId>.CreateSuccess(result.Data, "Customer created successfully"));
+        }
+
+        _logger.LogWarning("Failed to create customer: {Error}", result.Errors);
+        return BadRequest(ApiResponse<object>.CreateFailure(result.Errors));
     }
 }

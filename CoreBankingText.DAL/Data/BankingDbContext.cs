@@ -35,6 +35,7 @@ namespace CoreBanking.Infrastructure.Data
             modelBuilder.Ignore<IDomainEvent>();
 
 
+
             // Customer configuration
             modelBuilder.Entity<Customer>(entity =>
             {
@@ -145,26 +146,26 @@ namespace CoreBanking.Infrastructure.Data
                 LastName = "Johnson",
                 Email = "alice.johnson@email.com",
                 PhoneNumber = "555-0101",
-                BVN = "20000000000",
+                BVN = "20000000009",
                 CreditScore = 40,
                 Address = "Ikoyi, Lagos",
-                DateOfBirth = DateTime.UtcNow.AddYears(-30),
-                DateCreated = DateTime.UtcNow.AddDays(-30),
+                DateOfBirth = new DateTime(1995, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                DateCreated = new DateTime(2024, 10, 1, 0, 0, 0, DateTimeKind.Utc),
                 IsActive = true,
-                IsDeleted = false,
+                IsDeleted = false
             });
 
-             modelBuilder.Entity<Account>().HasData(new {
-                    AccountId = AccountId.Create(Guid.Parse("c3d4e5f6-3456-7890-cde1-345678901cde")),
-                    AccountNumber = AccountNumber.Create("1234567890"),
-                    AccountType = AccountType.Checking, // EF handles enum conversion
-                    CustomerId = CustomerId.Create(Guid.Parse("a1b2c3d4-1234-5678-9abc-123456789abc")),
-                    Currency = "NGN",
-                DateOpened = new DateTime(2025, 10, 11, 10, 0, 0, DateTimeKind.Utc),
+            modelBuilder.Entity<Account>().HasData(new
+            {
+                AccountId = AccountId.Create(Guid.Parse("c3d4e5f6-3456-7890-cde1-345678901cde")),
+                AccountNumber = AccountNumber.Create("1000000001"),
+                AccountType = AccountType.Checking,
+                CustomerId = CustomerId.Create(Guid.Parse("a1b2c3d4-1234-5678-9abc-123456789abc")),
+                Currency = "NGN",
+                DateOpened = new DateTime(2024, 10, 10, 0, 0, 0, DateTimeKind.Utc),
                 IsActive = true,
-                    IsDeleted = false            
-                }
-            );
+                IsDeleted = false
+            });
 
             // Then configure the owned types separately
             modelBuilder.Entity<Account>().OwnsOne(a => a.Balance).HasData(
