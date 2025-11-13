@@ -162,9 +162,14 @@ namespace CoreBanking.Infrastructure.Data
                 AccountType = AccountType.Checking,
                 CustomerId = CustomerId.Create(Guid.Parse("a1b2c3d4-1234-5678-9abc-123456789abc")),
                 Currency = "NGN",
+                // Also use a static date for DateOpened
                 DateOpened = new DateTime(2024, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+                LastActivityDate = new DateTime(2024, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+                Status = "Active",
                 IsActive = true,
-                IsDeleted = false
+                IsDeleted = false,
+                IsArchived = false,
+                IsInterestBearing = false,
             });
 
             // Then configure the owned types separately

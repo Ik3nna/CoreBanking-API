@@ -28,6 +28,15 @@ namespace CoreBanking.Core.Entities
         private readonly List<Transaction> _transactions = new();
         public IReadOnlyCollection<Transaction> Transactions => _transactions.AsReadOnly();
 
+        public DateTime LastActivityDate { get; private set; } = DateTime.UtcNow;
+
+        public string Status { get; private set; } = "Active"; // Active, Inactive, Closed, Suspended
+
+        public bool IsInterestBearing { get; private set; } = true;
+
+        public bool IsArchived { get; private set; } = false;
+
+
         private Account() { } // EF Core needs this
 
         // Option 1: Keep existing constructor for internal use
@@ -287,5 +296,54 @@ namespace CoreBanking.Core.Entities
 
             Balance = newBalance;
         }
+
+        public void MarkAsClosed()
+
+        {
+
+            Status = "Closed";
+
+            LastActivityDate = DateTime.UtcNow;
+
+        }
+
+
+
+        public void MarkAsArchived()
+
+        {
+
+            IsArchived = true;
+
+        }
+
+
+
+        public void UpdateStatusBasedOnRules()
+
+        {
+
+            // Implement your business rules for status updates
+
+            if (LastActivityDate < DateTime.UtcNow.AddYears(-1) && Status == "Active")
+
+            {
+
+                Status = "Inactive";
+
+            }
+
+        }
+
+
+
+        public void UpdateLastActivityDate()
+
+        {
+
+            LastActivityDate = DateTime.UtcNow;
+
+        }
+
     }
 }
